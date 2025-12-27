@@ -1,15 +1,9 @@
 #!/bin/sh
-set -e 
-. ./build.sh
+set -e
+. ./config.sh
 
-mkdir -p isodir
-mkdir -p isodir/boot
-mkdir -p isodir/boot/grub
+mkdir -p "$SYSROOT"
 
-cp sysroot/boot/myos.kernel isodir/boot/myos.kernel
-cat > isodir/boot/grub/grub.cfg << EOF
-menuentry "MyOS" {
-    multiboot /boot/myos.kernel
-}
-EOF
-grub-mkrescue -o myos.iso isodir
+for PROJECT in $SYSTEM_HEADER_PROJECTS; do
+  (cd $PROJECT && DESTDIR="$SYSROOT" $MAKE install-headers)
+done
