@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 static bool print(const char *data, size_t length) {
     for (size_t i = 0; i < length; i++) {
@@ -13,51 +14,100 @@ static bool print(const char *data, size_t length) {
 }
 
 int printf(const char* restrict format, ...) {
-    va_list args;
-    va_start(args, format);
+	va_list parameters;
+	va_start(parameters, format);
 
-    const char *p = format;
-    int total_written = 0;
+	int written = 0;
 
-    while (*p) {
-        if (*p == '%') {
-            p++;
-            if (*p == 's') {
-                const char *str = va_arg(args, const char *);
-                size_t len = strlen(str);
-                if (!print(str, len)) {
-                    va_end(args);
-                    return -1;
-                }
-                total_written += len;
-            } else if (*p == 'c') {
-                char c = (char)va_arg(args, int);
-                if (putchar(c) == EOF) {
-                    va_end(args);
-                    return -1;
-                }
-                total_written++;
-            } else if (*p == '%') {
-                if (putchar('%') == EOF) {
-                    va_end(args);
-                    return -1;
-                }
-                total_written++;
-            } else {
-                // Unsupported format specifier
-                va_end(args);
-                return -1;
-            }
-        } else {
-            if (putchar(*p) == EOF) {
-                va_end(args);
-                return -1;
-            }
-            total_written++;
-        }
-        p++;
-    }
+	while (*format != '\0') {
+		size_t maxrem = INT_MAX - written;
 
-    va_end(args);
-    return total_written;
+		if (format[0] != '%' || format[1] == '%') {
+			if (format[0] == '%')
+				format++;
+			size_t amount = 1;
+			while (format[amount] && format[amount] != '%')
+				amount++;
+			if (maxrem < amount) {
+				// TODO: Set errno to EOVERFLOW.
+				return -1;
+			}
+			if (!print(format, amount))
+				return -1;
+			format += amount;
+			written += amount;
+			continue;
+		}
+
+		const char* format_begun_at = format++;
+
+		if (*format == 'c') {
+			format++;
+			char c = (char) va_arg(parameters, int /* char promotes to int */);
+			if (!maxrem) {
+				// TODO: Set errno to EOVERFLOW.
+				return -1;
+			}
+			if (!print(&c, sizeof(c)))
+				return -1;
+			written++;
+		} else if (*format == 's') {
+			format++;
+			const char* str = va_arg(parameters, const char*);
+			size_t len = strlen(str);
+			if (maxrem < len) {
+				// TODO: Set errno to EOVERFLOW.
+				return -1;
+			}
+			if (!print(str, len))
+				return -1;
+			written += len;
+		} else if (*format == 'd' || *format == 'i') {
+			format++;
+			int num = va_arg(parameters, int);
+			char buffer[16];
+			int pos = 0;
+			if (num == 0) {
+				buffer[pos++] = '0';
+			} else {
+			    int is_negative = 0;
+				unsigned int u = num;
+				if (num < 0) {
+				    is_negative = 1;
+				    u = -(unsigned int)num;
+				}
+				while (u > 0) {
+					buffer[pos++] = '0' + u % 10;
+					u /= 10;
+				}
+				
+				if (is_negative) {
+				    buffer[pos++] = '-';
+				}
+			}
+			if (maxrem < (size_t)pos) {
+				// TODO: Set errno to EOVERFLOW.
+				return -1;
+			}
+			for (int k = pos - 1; k >= 0; k--) {
+			    if (!print(&buffer[k], 1))
+			        return -1;
+			}
+			written += pos;
+		} else {
+			format = format_begun_at;
+			size_t len = strlen(format);
+			if (maxrem < len) {
+				// TODO: Set errno to EOVERFLOW.
+				return -1;
+			}
+			if (!print(format, len))
+				return -1;
+			written += len;
+			format += len;
+		}
+	}
+
+	va_end(parameters);
+	return written;
 }

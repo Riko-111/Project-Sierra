@@ -74,7 +74,7 @@ void terminal_putchar(char c) {
                 terminal_scroll(line);
             }
             terminal_delete_last_line();
-            termonal_row = VGA_HEIGHT - 1;
+            terminal_row = VGA_HEIGHT - 1;
         }
     }
 }
