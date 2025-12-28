@@ -4,6 +4,8 @@ HOSTARCH!=../target_triplet-to-arch.sh $(HOST)
 
 CFLAGS?=-O2 -g
 CPPFLAGS?=
+NASM=nasm
+NASMFLAGS=-f elf32
 LDFLAGS?=
 LIBS?=
 
@@ -39,7 +41,7 @@ $(ARCHDIR)/crtend.o \
 $(ARCHDIR)/crtn.o \
 
 .PHONY: all clean install install-headers install-kernel
-.SUFFIXES: .c .o .S
+.SUFFIXES: .c .o .S .asm
 
 all: myos.kernel
 
@@ -51,10 +53,13 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 	OBJ=`$(CC) $(CFLAGS) $(LDFLAGS) -print-file-name=$(@F)` && cp "$$OBJ" $@
 
 .c.o:
-	$(CC) -MD -c $< -o $ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
+	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
 
 .S.o:
-	$(CC) -MD -c $< -o $ $(CFLAGS) $(CPPFLAGS)
+	$(CC) -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
+
+.asm.o:
+	$(NASM) $(NASMFLAGS) $< -o $@
 
 clean:
 	rm -f myos.kernel
